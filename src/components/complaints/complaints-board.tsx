@@ -6,6 +6,7 @@ import { ArrowRight, GripVertical, PanelsTopLeft, Search } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ComplaintDetailDrawer } from "@/components/complaints/complaint-detail-drawer";
+import { WorkOrderExportDialog } from "@/components/complaints/work-order-export-dialog";
 import {
   Kanban,
   KanbanBoard,
@@ -40,6 +41,7 @@ export function ComplaintsBoard() {
   const [reporter, setReporter] = useState("");
   const [view, setView] = useState<"board" | "list">("board");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [exportComplaints, setExportComplaints] = useState<Complaint[] | null>(null);
   const [draft, setDraft] = useState<{ key: string; columns: Record<ComplaintStatus, Complaint[]> } | null>(null);
 
   const filtered = useMemo(() => {
@@ -65,7 +67,8 @@ export function ComplaintsBoard() {
           <h1 className="text-[28px] font-medium leading-tight tracking-[-1px] md:text-[30px]">Complaints Board</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">Track and manage hostel complaints from triage to resolution.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {complaints.length ? <Button variant="outline" size="sm" disabled={!filtered.some((item) => item.status !== "Resolved / Fixed")} onClick={() => setExportComplaints(filtered.filter((item) => item.status !== "Resolved / Fixed"))}>Export Work Order</Button> : null}
           {complaints.length ? <div className="inline-flex rounded-[6px] border bg-white p-1" role="group" aria-label="Complaints view">
             <button type="button" aria-pressed={view === "board"} onClick={() => setView("board")} className={`rounded-[4px] px-3 py-1.5 text-xs ${view === "board" ? "bg-muted font-medium text-foreground" : "text-muted-foreground"}`}>Board</button>
             <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")} className={`rounded-[4px] px-3 py-1.5 text-xs ${view === "list" ? "bg-muted font-medium text-foreground" : "text-muted-foreground"}`}>List</button>
@@ -132,7 +135,8 @@ export function ComplaintsBoard() {
           <Link href="/import" className={buttonVariants({ variant: "outline", className: "mt-6 h-9 px-4" })}>Import Chats<ArrowRight aria-hidden="true" /></Link>
         </section>
       )}
-      <ComplaintDetailDrawer complaint={selectedComplaint} onClose={() => setSelectedId(null)} />
+      <ComplaintDetailDrawer complaint={selectedComplaint} onClose={() => setSelectedId(null)} onExport={(item) => setExportComplaints([item])} />
+      {exportComplaints ? <WorkOrderExportDialog complaints={exportComplaints} onClose={() => setExportComplaints(null)} /> : null}
     </>
   );
 }
