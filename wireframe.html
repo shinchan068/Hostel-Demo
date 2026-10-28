@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostel Complaint Triage - Shadcn Wireframe (Light Theme)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-900 antialiased bg-slate-50 flex flex-col">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-3.5 shadow-xs">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="h-9 w-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+          H
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold text-slate-900 tracking-tight">HostelHub Triage</h1>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">Gemma 4 AI</span>
+          </div>
+          <p class="text-xs text-slate-500">Fast grievance triage for Hostel Wardens & Floor Reps</p>
+        </div>
+      </div>
+
+      <!-- Center / Right Controls -->
+      <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
+        <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-600">
+          <button class="px-3 py-1 rounded-md bg-white text-slate-900 font-semibold shadow-xs">Hostel Warden</button>
+          <button class="px-3 py-1 rounded-md text-slate-500 hover:text-slate-800">Floor Rep</button>
+        </div>
+
+        <button onclick="toggleInputDrawer()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          Paste Raw Chat
+        </button>
+
+        <button onclick="openExportModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+          Export Work Order
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto w-full px-6 py-6 flex-1 flex flex-col space-y-6">
+
+    <!-- Ingestion Drawer / Card -->
+    <section id="input-section" class="bg-white border border-slate-200 rounded-xl p-5 shadow-xs transition-all duration-300">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <span class="flex h-2 w-2 rounded-full bg-indigo-600"></span>
+            WhatsApp Chat Ingestion & Triage
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">Paste raw WhatsApp messages or load sample hostel complaints to run AI parsing</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="loadSampleChat()" class="text-xs px-2.5 py-1 rounded-md border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 font-medium transition">
+            ⚡ Load Sample Chat Dump
+          </button>
+          <button onclick="clearChat()" class="text-xs px-2.5 py-1 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 font-medium transition">
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3.5 space-y-3">
+        <textarea id="chat-input" rows="4" class="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-800 placeholder-slate-400" placeholder="Paste messy WhatsApp group chat here..."></textarea>
+
+        <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center gap-4 text-xs text-slate-500">
+            <span class="inline-flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+              Cloud Inference: <strong class="text-slate-700 font-semibold">Google Gemma 4</strong>
+            </span>
+            <span class="text-slate-300">|</span>
+            <span class="text-xs text-slate-500">Auto-detects urgency, room numbers & noisy spam</span>
+          </div>
+
+          <button onclick="simulateTriage()" id="btn-triage" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition">
+            <svg class="w-4 h-4 animate-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            Run AI Triage
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Skim Executive KPI Bar (< 60s Warden Overview) -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white border border-red-200/80 rounded-xl p-4 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-red-600 uppercase tracking-wider">Critical P0 Issues</p>
+          <h3 class="text-2xl font-bold text-red-700 mt-1" id="kpi-p0">2</h3>
+          <p class="text-[12px] text-slate-500 mt-0.5">Immediate safety hazards</p>
+        </div>
+        <div class="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold border border-red-100">
+          🚨
+        </div>
+      </div>
+
+      <div class="bg-white border border-amber-200/80 rounded-xl p-4 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-amber-600 uppercase tracking-wider">Missing Room #</p>
+          <h3 class="text-2xl font-bold text-amber-700 mt-1" id="kpi-missing">1</h3>
+          <p class="text-[12px] text-slate-500 mt-0.5">Needs student reply</p>
+        </div>
+        <div class="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold border border-amber-100">
+          ⚠️
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Top Category</p>
+          <h3 class="text-2xl font-bold text-slate-800 mt-1" id="kpi-cat">Electrical</h3>
+          <p class="text-[12px] text-slate-500 mt-0.5">3 active complaints</p>
+        </div>
+        <div class="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200">
+          ⚡
+        </div>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Spam / Filtered</p>
+          <h3 class="text-2xl font-bold text-slate-800 mt-1" id="kpi-spam">2</h3>
+          <p class="text-[12px] text-slate-500 mt-0.5">Non-grievance messages</p>
+        </div>
+        <div class="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200">
+          🗑️
+        </div>
+      </div>
+    </section>
+
+    <!-- Smart AI Insight Banner (As in Reference Screenshot 3) -->
+    <div class="bg-amber-50/70 border border-amber-200/90 rounded-xl p-3.5 px-4 shadow-xs flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="text-base text-amber-600">✨</span>
+        <p class="text-xs text-amber-900 font-medium">
+          <strong>AI Triage Insight:</strong> 2 emergency hazards detected (Geyser sparking in B-304 & Corridor flooding in Wing A). 1 complaint from Shaurya S. lacks a room number.
+        </p>
+      </div>
+      <span class="text-[12px] text-amber-700 font-semibold cursor-pointer hover:underline" onclick="alert('Filtered to view only P0 Emergency hazards.')">Show P0s Only &rarr;</span>
+    </div>
+
+    <!-- 3-Column Modern Shadcn Kanban Board (Light Theme) -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-5 flex-1 items-start">
+
+      <!-- Column 1: Todo / Backlog -->
+      <div class="bg-slate-100/70 border border-slate-200 rounded-xl p-3 flex flex-col space-y-3">
+        <div class="flex items-center justify-between px-1 py-1">
+          <div class="flex items-center space-x-2">
+            <span class="h-2.5 w-2.5 rounded-full border-2 border-slate-400"></span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Todo / Triaged</h3>
+            <span class="text-xs bg-slate-200 text-slate-700 font-semibold px-2 py-0.2 rounded-full">3</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-600 text-base font-bold">+</button>
+        </div>
+
+        <div class="space-y-3" id="col-todo">
+          <!-- Card 1 (P0 Critical) -->
+          <div class="bg-white border-l-4 border-l-red-500 border border-slate-200 rounded-lg p-3.5 shadow-xs hover:shadow-sm transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-red-100 text-red-700 border border-red-200">
+                  🔴 P0 Urgent
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-medium bg-slate-100 text-slate-700">
+                  ⚡ Electrical
+                </span>
+              </div>
+              <span class="text-[12px] font-semibold text-slate-400">#101</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-900 mt-2">Geyser sparking & circuit tripping</h4>
+            <p class="text-[12px] text-slate-500 mt-1">Sparks from water heater; power tripped across wing.</p>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-semibold text-slate-800">Room B-304</span>
+              <button onclick="moveCard(this, 'col-progress')" class="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded border border-slate-200 transition">
+                Dispatch &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- Card 2 (P1 High - Missing Room Warning) -->
+          <div class="bg-white border-l-4 border-l-amber-500 border border-slate-200 rounded-lg p-3.5 shadow-xs hover:shadow-sm transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                  🟠 P1 High
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-medium bg-slate-100 text-slate-700">
+                  ⚡ Electrical
+                </span>
+              </div>
+              <span class="text-[12px] font-semibold text-slate-400">#102</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-900 mt-2">Fan regulator broken (stuck full speed)</h4>
+            <div class="mt-1.5 inline-flex items-center gap-1 text-[12px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+              ⚠️ Room # not specified in chat
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="text-slate-500">By: <strong>Shaurya S.</strong></span>
+              <button onclick="moveCard(this, 'col-progress')" class="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded border border-slate-200 transition">
+                Dispatch &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- Card 3 (P1 Mess Food Quality) -->
+          <div class="bg-white border-l-4 border-l-orange-400 border border-slate-200 rounded-lg p-3.5 shadow-xs hover:shadow-sm transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                  🟠 P1 High
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-medium bg-slate-100 text-slate-700">
+                  🍽️ Mess
+                </span>
+              </div>
+              <span class="text-[12px] font-semibold text-slate-400">#103</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-900 mt-2">Uncooked paneer & food hygiene complaint</h4>
+            <p class="text-[12px] text-slate-500 mt-1">Multiple students reported stomach ache after dinner.</p>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-medium text-slate-700">Central Mess</span>
+              <button onclick="moveCard(this, 'col-progress')" class="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold rounded border border-slate-200 transition">
+                Dispatch &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 2: In Progress / Assigned -->
+      <div class="bg-slate-100/70 border border-slate-200 rounded-xl p-3 flex flex-col space-y-3">
+        <div class="flex items-center justify-between px-1 py-1">
+          <div class="flex items-center space-x-2">
+            <span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">In Progress</h3>
+            <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.2 rounded-full">2</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-600 text-base font-bold">+</button>
+        </div>
+
+        <div class="space-y-3" id="col-progress">
+          <!-- Card 4 (P0 Water Purifier Leak) -->
+          <div class="bg-white border-l-4 border-l-red-500 border border-slate-200 rounded-lg p-3.5 shadow-xs hover:shadow-sm transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-red-100 text-red-700 border border-red-200">
+                  🔴 P0 Urgent
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-medium bg-slate-100 text-slate-700">
+                  💧 Plumbing
+                </span>
+              </div>
+              <span class="text-[12px] font-semibold text-slate-400">#104</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-900 mt-2">Water purifier leaking heavily & flooding corridor</h4>
+            <p class="text-[12px] text-slate-500 mt-1">Assigned: <strong>Ramesh (Plumber)</strong></p>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-semibold text-slate-800">2nd Flr, Wing A</span>
+              <button onclick="moveCard(this, 'col-done')" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded border border-emerald-200 transition">
+                ✓ Mark Fixed
+              </button>
+            </div>
+          </div>
+
+          <!-- Card 5 (P1 Wi-Fi Dead) -->
+          <div class="bg-white border-l-4 border-l-orange-400 border border-slate-200 rounded-lg p-3.5 shadow-xs hover:shadow-sm transition">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                  🟠 P1 High
+                </span>
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-medium bg-slate-100 text-slate-700">
+                  📶 Wi-Fi
+                </span>
+              </div>
+              <span class="text-[12px] font-semibold text-slate-400">#105</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-900 mt-2">4th floor AP router offline before midsems</h4>
+            <p class="text-[12px] text-slate-500 mt-1">IT staff ticket dispatched.</p>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono font-semibold text-slate-800">4th Floor AP</span>
+              <button onclick="moveCard(this, 'col-done')" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded border border-emerald-200 transition">
+                ✓ Mark Fixed
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column 3: Fixed / Resolved -->
+      <div class="bg-slate-100/70 border border-slate-200 rounded-xl p-3 flex flex-col space-y-3">
+        <div class="flex items-center justify-between px-1 py-1">
+          <div class="flex items-center space-x-2">
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Fixed / Resolved</h3>
+            <span class="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.2 rounded-full">2</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-600 text-base font-bold">+</button>
+        </div>
+
+        <div class="space-y-3" id="col-done">
+          <!-- Card 6 (Resolved Carpentry) -->
+          <div class="bg-white border-l-4 border-l-emerald-500 border border-slate-200 rounded-lg p-3.5 shadow-xs opacity-90">
+            <div class="flex items-start justify-between gap-2">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                ✓ Resolved
+              </span>
+              <span class="text-[12px] font-semibold text-slate-400">#98</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 mt-2 line-through">Bathroom door latch stuck outside</h4>
+            <p class="text-[12px] text-slate-400 mt-1">Fixed by Suresh (Carpenter)</p>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-600">Room C-112</span>
+              <span class="text-emerald-600 font-medium text-[12px]">Closed</span>
+            </div>
+          </div>
+
+          <!-- Card 7 (Resolved Tap dripping) -->
+          <div class="bg-white border-l-4 border-l-emerald-500 border border-slate-200 rounded-lg p-3.5 shadow-xs opacity-90">
+            <div class="flex items-start justify-between gap-2">
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[12px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                ✓ Resolved
+              </span>
+              <span class="text-[12px] font-semibold text-slate-400">#99</span>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 mt-2 line-through">Tap dripping constantly in west wing</h4>
+            <p class="text-[12px] text-slate-400 mt-1">Washer replaced.</p>
+            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[12px]">
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-600">3rd Flr West</span>
+              <span class="text-emerald-600 font-medium text-[12px]">Closed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Work Order Export Modal -->
+  <div id="export-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-xl max-w-lg w-full p-5 shadow-lg">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+          <span>📲</span> Copy Maintenance Dispatch for WhatsApp
+        </h3>
+        <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600 text-lg leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">
+        One-click formatted message ready to send to hostel technicians or maintenance contractors:
+      </p>
+      <div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-800 leading-relaxed whitespace-pre-line" id="export-text">
+*HOSTEL MAINTENANCE WORK ORDER - 28/10/26*
+
+🚨 *URGENT P0 TASKS:*
+1. [Room B-304] Geyser sparking & power trip - *Electrician required ASAP*
+2. [2nd Floor Wing A] Water purifier leak & flooding corridor - *Plumber required ASAP*
+
+🟠 *HIGH PRIORITY:*
+3. [4th Floor AP] Wi-Fi router offline - *IT Admin*
+4. [Central Mess] Food quality grievance - *Mess Supervisor inspection*
+
+⚠️ *MISSING DETAILS:*
+- Shaurya S reported fan regulator broken. (Room # unknown).
+      </div>
+      <div class="mt-4 flex items-center justify-end gap-2">
+        <button onclick="closeExportModal()" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">Close</button>
+        <button onclick="copyWorkOrder()" id="copy-btn" class="px-4 py-1.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition">
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sampleChat = `[24/10/26, 21:14:02] Aryan Verma: @Hostel Warden sir urgent geyser in room B-304 is sparking and making weird noise. P0 please send someone immediately electricity trip ho rahi hai!
+[24/10/26, 21:18:45] Tanmay K: guys anyone has extra maggi?
+[24/10/26, 21:22:10] Rohan Gupta: @Hostel Warden water purifier on 2nd floor wing A is leaking badly, water is flooding the corridor.
+[24/10/26, 21:30:15] Shaurya S: Warden sir my fan regulator is broken stuck at full speed cant sleep properly.
+[24/10/26, 21:45:00] Rahul N: Wi-Fi router on 4th floor is dead since 6 PM. Midsems from Monday we have submissions tonight please restart router ASAP!! P1
+[24/10/26, 22:05:32] Devansh: @Hostel Warden mess dinner had uncooked paneer today half the wing is complaining of stomach issues. Please audit mess vendor.
+[24/10/26, 22:15:10] Siddharth: Someone please tell laundry guy to return clothes from Tuesday
+[24/10/26, 22:30:40] Aditya M: Room C-112 bathroom door latch broken from outside, got locked in for 20 mins today. Need carpentry fix urgently.
+[24/10/26, 23:02:18] Sameer: Tap in washroom 3rd floor west wing is dripping constantly wasting water.`;
+
+    function loadSampleChat() {
+      document.getElementById('chat-input').value = sampleChat;
+    }
+
+    function clearChat() {
+      document.getElementById('chat-input').value = '';
+    }
+
+    function toggleInputDrawer() {
+      const el = document.getElementById('input-section');
+      el.classList.toggle('hidden');
+    }
+
+    function moveCard(btn, targetColId) {
+      const card = btn.closest('.bg-white');
+      const targetCol = document.getElementById(targetColId);
+      
+      if (targetColId === 'col-progress') {
+        btn.innerText = '✓ Mark Fixed';
+        btn.className = 'px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded border border-emerald-200 transition';
+        btn.setAttribute('onclick', "moveCard(this, 'col-done')");
+      } else if (targetColId === 'col-done') {
+        btn.remove();
+        card.querySelector('h4').classList.add('line-through');
+        card.classList.add('opacity-80');
+      }
+      
+      targetCol.prepend(card);
+    }
+
+    function openExportModal() {
+      document.getElementById('export-modal').classList.remove('hidden');
+    }
+
+    function closeExportModal() {
+      document.getElementById('export-modal').classList.add('hidden');
+    }
+
+    function copyWorkOrder() {
+      const text = document.getElementById('export-text').innerText;
+      navigator.clipboard.writeText(text);
+      const btn = document.getElementById('copy-btn');
+      btn.innerText = '✓ Copied!';
+      setTimeout(() => { btn.innerText = 'Copy to Clipboard'; }, 2000);
+    }
+
+    function simulateTriage() {
+      const btn = document.getElementById('btn-triage');
+      btn.innerHTML = `⚙️ Triaging with Gemma 4...`;
+      setTimeout(() => {
+        btn.innerHTML = `✓ Triage Complete`;
+        setTimeout(() => {
+          btn.innerHTML = `Run AI Triage`;
+        }, 1500);
+      }, 900);
+    }
+  </script>
+</body>
+</html>
