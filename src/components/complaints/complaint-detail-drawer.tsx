@@ -49,9 +49,11 @@ export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { compla
               <section>
                 <h3 className="text-xs font-medium">Issue summary</h3>
                 <p className="mt-2 rounded-[6px] border bg-white p-3 text-sm leading-6">
-                  {complaint.title} reported by {complaint.reporter}{complaint.location ? ` at ${complaint.location}` : "; location not specified"}.
+                  {complaint.summary || `${complaint.title} reported by ${complaint.reporter}${complaint.location ? ` at ${complaint.location}` : "; location not specified"}.`}
                 </p>
-                <p className="mt-2 text-[11px] text-neutral-700">Summary from the current triage fields.</p>
+                <p className="mt-2 text-[11px] text-neutral-700">{complaint.analysisSource === "gemma" ? "Analyzed with Gemma · verify against the original message." : "Summary from the current triage fields."}</p>
+                {complaint.urgencyKeywords?.length ? <p className="mt-3 text-xs leading-5"><span className="font-medium">Urgency keywords: </span>{complaint.urgencyKeywords.join(", ")}</p> : null}
+                {complaint.missingInfo?.length ? <p className="mt-2 text-xs leading-5"><span className="font-medium">Follow up: </span>{complaint.missingInfo.join(", ")}</p> : null}
               </section>
               <section className="mt-6">
                 <h3 className="text-xs font-medium">Key details</h3>

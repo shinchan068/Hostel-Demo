@@ -68,6 +68,7 @@ export function analyzeChat(messages: ParsedChat[]) {
       reporter: item.sender,
       originalMessage: item.message,
       status: "Todo / Triaged",
+      analysisSource: "demo",
       createdAt: item.timestamp,
     });
   }

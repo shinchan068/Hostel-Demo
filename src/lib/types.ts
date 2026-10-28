@@ -24,7 +24,13 @@ export type Complaint = {
   originalMessage: string;
   status: ComplaintStatus;
   statusHistory?: ComplaintStatusChange[];
+  summary?: string;
+  urgencyKeywords?: string[];
+  missingInfo?: string[];
+  analysisSource?: "gemma" | "demo";
   createdAt: string;
 };
+
+export type TriageResult = { complaints: Complaint[]; noise: number; invalidLines: number };
 
 export type ParsedChat = { timestamp: string; sender: string; message: string };
