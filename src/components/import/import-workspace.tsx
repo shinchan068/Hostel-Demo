@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, Check, FileUp, Sparkles, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { addComplaints } from "@/lib/complaint-store";
 import { analyzeChat, parseChat } from "@/lib/parse-chat";
-import { complaintCategories, complaintPriorities, type Complaint } from "@/lib/types";
-
-const MAX_CHAT_LENGTH = 100_000;
+import { complaintCategories, complaintPriorities, type Complaint, type TriageResult } from "@/lib/types";
+import { MAX_CHAT_LENGTH, MAX_TRIAGE_MESSAGES } from "@/lib/triage-schema";
 
 export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const requestRef = useRef<AbortController | null>(null);
   const [rawChat, setRawChat] = useState("");
   const [inputMode, setInputMode] = useState<"paste" | "upload">("paste");
   const [results, setResults] = useState<Complaint[]>([]);
@@ -23,6 +23,10 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
   const [invalidLines, setInvalidLines] = useState(0);
   const [status, setStatus] = useState<"idle" | "analyzing">("idle");
   const [error, setError] = useState("");
+  const [analysisSource, setAnalysisSource] = useState<"gemma" | "demo" | null>(null);
+  const analyzing = status === "analyzing";
+
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   function updateComplaint(id: string, updates: Partial<Complaint>) {
     setResults((items) => items.map((item) => item.id === id ? { ...item, ...updates } : item));
@@ -41,10 +45,13 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
     }).catch(() => setError("Could not read that file. Please try another text file."));
   }
 
-  async function analyze() {
+  async function analyze(source: "gemma" | "demo") {
+    if (requestRef.current) return;
     setError("");
     setResults([]);
     setSelected([]);
+    setNoise(0);
+    setInvalidLines(0);
     if (!rawChat.trim()) {
       setError("Paste a WhatsApp chat or load the sample before analyzing.");
       return;
@@ -53,18 +60,45 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
       setError("Chats must be 100,000 characters or fewer.");
       return;
     }
-    setStatus("analyzing");
-    await new Promise((resolve) => setTimeout(resolve, 180));
     const parsed = parseChat(rawChat);
-    const analysis = analyzeChat(parsed.messages);
-    setResults(analysis.complaints);
-    setSelected(analysis.complaints.map((item) => item.id));
-    setNoise(analysis.noise);
-    setInvalidLines(parsed.invalidLines);
-    if (!analysis.complaints.length) {
-      setError(parsed.messages.length ? "No maintenance complaints found. Try the sample chat or paste a WhatsApp export." : "No WhatsApp messages found. Use lines like [24/10/26, 21:14] Name: message.");
+    if (!parsed.messages.length) {
+      setError("No WhatsApp messages found. Use lines like [24/10/26, 21:14] Name: message.");
+      return;
     }
-    setStatus("idle");
+    if (parsed.messages.length > MAX_TRIAGE_MESSAGES) {
+      setError(`Analyze at most ${MAX_TRIAGE_MESSAGES} messages at a time. Split this chat into smaller parts.`);
+      return;
+    }
+    setStatus("analyzing");
+    setAnalysisSource(source);
+    try {
+      let analysis: TriageResult;
+      if (source === "demo") {
+        analysis = { ...analyzeChat(parsed.messages), invalidLines: parsed.invalidLines };
+      } else {
+        const controller = new AbortController();
+        requestRef.current = controller;
+        const response = await fetch("/api/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawChat }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(55_000)]),
+        });
+        const data = await response.json() as TriageResult & { error?: string };
+        if (!response.ok) throw new Error(data.error || "AI analysis failed. Please retry.");
+        analysis = data;
+      }
+      setResults(analysis.complaints);
+      setSelected(analysis.complaints.map((item) => item.id));
+      setNoise(analysis.noise);
+      setInvalidLines(analysis.invalidLines);
+      if (!analysis.complaints.length) setError("No maintenance complaints found. Try the sample chat or paste another WhatsApp export.");
+    } catch (cause) {
+      if (!requestRef.current?.signal.aborted) setError(cause instanceof Error ? cause.message : "AI analysis failed. Please retry.");
+    } finally {
+      requestRef.current = null;
+      setStatus("idle");
+    }
   }
 
   function addSelected() {
@@ -85,7 +119,7 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
           <h1 className="text-[28px] font-medium leading-tight tracking-[-1px] md:text-[30px]">Import Chats</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">Paste a WhatsApp group export and review the complaints to carry onto your board.</p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 font-mono text-[10px] tracking-wide text-muted-foreground"><Sparkles size={13} aria-hidden="true" /> MOCK TRIAGE</span>
+        <span className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1.5 font-mono text-[10px] tracking-wide text-muted-foreground"><Sparkles size={13} aria-hidden="true" />{analysisSource === "demo" ? "DEMO TRIAGE" : "GEMMA TRIAGE"}</span>
       </div>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,0.78fr)_minmax(0,1.22fr)]">
@@ -96,32 +130,33 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
           </div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex rounded-[6px] bg-muted p-1" role="group" aria-label="Chat input method">
-              <button type="button" aria-pressed={inputMode === "paste"} onClick={() => setInputMode("paste")} className={`rounded-[4px] px-3 py-1.5 text-xs ${inputMode === "paste" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Paste text</button>
-              <button type="button" aria-pressed={inputMode === "upload"} onClick={() => setInputMode("upload")} className={`rounded-[4px] px-3 py-1.5 text-xs ${inputMode === "upload" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Upload file</button>
+              <button type="button" disabled={analyzing} aria-pressed={inputMode === "paste"} onClick={() => setInputMode("paste")} className={`rounded-[4px] px-3 py-1.5 text-xs ${inputMode === "paste" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Paste text</button>
+              <button type="button" disabled={analyzing} aria-pressed={inputMode === "upload"} onClick={() => setInputMode("upload")} className={`rounded-[4px] px-3 py-1.5 text-xs ${inputMode === "upload" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Upload file</button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => { setRawChat(sampleChat); setInputMode("paste"); setError(""); }}><FileUp aria-hidden="true" />Load sample</Button>
+            <Button variant="ghost" size="sm" disabled={analyzing} onClick={() => { setRawChat(sampleChat); setInputMode("paste"); setError(""); }}><FileUp aria-hidden="true" />Load sample</Button>
           </div>
-          <input ref={fileRef} type="file" accept=".txt,text/plain" className="sr-only" aria-label="Choose a WhatsApp text export" onChange={(event) => loadFile(event.target.files?.[0])} />
+          <input ref={fileRef} disabled={analyzing} type="file" accept=".txt,text/plain" className="sr-only" aria-label="Choose a WhatsApp text export" onChange={(event) => loadFile(event.target.files?.[0])} />
           {inputMode === "upload" ? (
-            <button type="button" onClick={() => fileRef.current?.click()} className="flex min-h-48 w-full flex-col items-center justify-center rounded-[6px] border border-dashed bg-background px-5 text-center hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+            <button type="button" disabled={analyzing} onClick={() => fileRef.current?.click()} className="flex min-h-48 w-full flex-col items-center justify-center rounded-[6px] border border-dashed bg-background px-5 text-center hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
               <Upload size={21} className="mb-3 text-muted-foreground" aria-hidden="true" />
               <span className="text-sm font-medium">Choose a WhatsApp text export</span>
               <span className="mt-1 text-xs text-muted-foreground">.txt, up to 100 KB</span>
             </button>
           ) : (
-            <Textarea value={rawChat} maxLength={MAX_CHAT_LENGTH} onChange={(event) => setRawChat(event.target.value)} aria-label="WhatsApp chat dump" placeholder="[24/10/26, 21:14] Aryan Verma: The geyser in room B-304 is sparking…" className="min-h-56 resize-y rounded-[6px] bg-white font-mono text-xs leading-5 md:min-h-[360px]" />
+            <Textarea disabled={analyzing} value={rawChat} maxLength={MAX_CHAT_LENGTH} onChange={(event) => setRawChat(event.target.value)} aria-label="WhatsApp chat dump" placeholder="[24/10/26, 21:14] Aryan Verma: The geyser in room B-304 is sparking…" className="min-h-56 resize-y rounded-[6px] bg-white font-mono text-xs leading-5 md:min-h-[360px]" />
           )}
           <div className="mt-2 flex justify-between gap-3 text-[11px] text-muted-foreground"><span>WhatsApp text exports are supported.</span><span className="shrink-0 tabular-nums">{rawChat.length.toLocaleString()} / {MAX_CHAT_LENGTH.toLocaleString()}</span></div>
           {error ? <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-destructive"><AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />{error}</p> : null}
-          <Button className="mt-5 h-10 w-full" onClick={analyze} disabled={status === "analyzing"}>
-            <Sparkles aria-hidden="true" />{status === "analyzing" ? "Analyzing chat…" : "Analyze complaints"}<ArrowRight aria-hidden="true" />
+          <Button className="mt-5 h-10 w-full" onClick={() => void analyze("gemma")} disabled={analyzing}>
+            <Sparkles aria-hidden="true" />{analyzing ? "Analyzing chat…" : "Analyze with AI"}<ArrowRight aria-hidden="true" />
           </Button>
-          <p className="mt-3 text-center font-mono text-[9px] tracking-wide text-muted-foreground">DEMO CLASSIFIER · NO AI API CALLS</p>
+          <Button className="mt-2 w-full" variant="outline" onClick={() => void analyze("demo")} disabled={analyzing}>Run demo triage</Button>
+          <p className="mt-3 text-center text-[11px] leading-5 text-muted-foreground">AI analysis sends the chat messages to Google. Demo triage stays in this browser. Up to {MAX_TRIAGE_MESSAGES} messages per analysis.</p>
         </section>
 
         <section aria-labelledby="analysis-heading" className="min-w-0 rounded-[6px] border bg-white p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 id="analysis-heading" className="text-base font-medium">Analysis results</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Review and edit mock extractions before adding them to the board.</p></div>
+            <div><h2 id="analysis-heading" className="text-base font-medium">Analysis results</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Review and edit extracted complaints before adding them to the board.</p></div>
             {results.length > 0 ? <span className="font-mono text-[10px] tracking-wide text-muted-foreground">{results.length} FOUND</span> : null}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
