@@ -5,7 +5,7 @@ import { triagePrompt } from "./triage-prompt";
 import { validateTriageResponse } from "./triage-schema";
 
 export class GemmaError extends Error {
-  constructor(message: string, public status: 502 | 503 | 504) { super(message); }
+  constructor(message: string, public status: 429 | 502 | 503 | 504) { super(message); }
 }
 
 export async function triageWithGemma(messages: ParsedChat[], signal: AbortSignal) {
@@ -29,7 +29,11 @@ export async function triageWithGemma(messages: ParsedChat[], signal: AbortSigna
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: triagePrompt }, { text: JSON.stringify(messages.map((item, messageIndex) => ({ messageIndex, message: item.message }))) }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 16384 },
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: Math.min(16384, 1024 + messages.length * 512),
+          ...(endpoint.includes("/models/gemma-4-") ? { thinkingConfig: { thinkingLevel: "minimal" } } : {}),
+        },
       }),
       signal: requestSignal,
       cache: "no-store",
@@ -40,7 +44,8 @@ export async function triageWithGemma(messages: ParsedChat[], signal: AbortSigna
   }
   if (!response.ok) {
     await response.body?.cancel();
-    if (response.status === 429 || response.status >= 500) throw new GemmaError("The AI service is busy. Please retry shortly.", 503);
+    if (response.status === 429) throw new GemmaError("AI rate limit reached. Wait for your quota to reset before trying again. No automatic retry was made.", 429);
+    if (response.status >= 500) throw new GemmaError("The AI service is busy. Please retry shortly.", 503);
     throw new GemmaError("The AI service rejected the request. Please check the server's model and API configuration.", 502);
   }
   try {

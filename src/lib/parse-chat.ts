@@ -1,6 +1,8 @@
 import type { Complaint, ComplaintCategory, ComplaintPriority, ParsedChat } from "./types";
 
 const whatsappLine = /^\[([^\]]+)\]\s*([^:]+):\s*(.*)$/;
+const androidLine = /^(\d{1,4}[/.]\d{1,2}[/.]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]m)?)\s+-\s+([^:]+):[ \t]*(.*)$/i;
+const timestamp = /^\d{1,4}[/.]\d{1,2}[/.]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]m)?$/i;
 const roomPattern = /\b(?:room\s+)?([A-Z]-\d{3})\b/i;
 const floorPattern = /\b\d+(?:st|nd|rd|th)\s+floor\b/i;
 const rules: [RegExp, ComplaintCategory, string][] = [
@@ -15,16 +17,29 @@ const rules: [RegExp, ComplaintCategory, string][] = [
 
 export function parseChat(rawChat: string): { messages: ParsedChat[]; invalidLines: number } {
   let invalidLines = 0;
-  const messages = rawChat.split(/\r?\n/).flatMap((line) => {
+  const messages: ParsedChat[] = [];
+  let current: ParsedChat | undefined;
+  for (const rawLine of rawChat.split(/\r?\n/)) {
+    const line = rawLine.replace(/^[\uFEFF\u200e\u200f]+/, "");
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("```") || trimmed.startsWith("#") || trimmed.startsWith("---")) return [];
-    const match = trimmed.match(whatsappLine);
-    if (!match) {
-      if (trimmed.startsWith("[")) invalidLines++;
-      return [];
+    if (trimmed.startsWith("```")) {
+      current = undefined;
+      continue;
     }
-    return [{ timestamp: match[1], sender: match[2].trim(), message: match[3].trim() }];
-  });
+    if (!current && (trimmed.startsWith("#") || trimmed.startsWith("---"))) continue;
+    const match = line.match(whatsappLine) ?? line.match(androidLine);
+    if (match && timestamp.test(match[1]) && match[2].trim()) {
+      current = { timestamp: match[1], sender: match[2].trim(), message: match[3] };
+      messages.push(current);
+    } else if (trimmed.startsWith("[") || /^\d{1,4}[/.]\d{1,2}[/.]/.test(trimmed)) {
+      invalidLines++;
+      current = undefined;
+    } else if (current) {
+      current.message += `\n${rawLine}`;
+    } else if (trimmed) {
+      invalidLines++;
+    }
+  }
   return { messages, invalidLines };
 }
 
@@ -38,7 +53,7 @@ function classify(message: string): { category: ComplaintCategory; priority: Com
       ? "P1" : /\bp3\b/i.test(message) ? "P3" : /\bp2\b/i.test(message) ? "P2" : "P2";
   const location = message.match(roomPattern)?.[1]?.toUpperCase()
     ?? message.match(floorPattern)?.[0]
-    ?? message.match(/wing\s+[a-z]/i)?.[0]
+    ?? message.match(/\bwing\s+[a-z]\b/i)?.[0]
     ?? (/\bmess\b/i.test(message) ? "Hostel Mess" : "");
   const title = category === "Electrical" && /geyser/i.test(message) ? "Geyser sparking"
     : category === "Plumbing" && /leak|flood|purifier/i.test(message) ? "Water leakage reported"

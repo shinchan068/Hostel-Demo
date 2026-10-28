@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetContent,
@@ -21,8 +21,6 @@ const priorityStyle: Record<Complaint["priority"], string> = {
 };
 
 export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { complaint: Complaint | null; onClose: () => void; onExport: (complaint: Complaint) => void }) {
-  const [tab, setTab] = useState<"details" | "message" | "activity">("details");
-
   return (
     <Sheet open={Boolean(complaint)} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent className="w-full overflow-hidden p-0 sm:max-w-xl" aria-label="Complaint details">
@@ -32,20 +30,20 @@ export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { compla
               <span className={`rounded-[4px] px-2 py-1 font-mono text-[10px] ${priorityStyle[complaint.priority]}`}>{complaint.priority}</span>
               <span className="font-mono text-[11px] text-foreground">#{complaint.id}</span>
             </div>
-            <SheetTitle className="pt-1">{complaint.title}</SheetTitle>
+            <SheetTitle className="break-words pt-1">{complaint.title}</SheetTitle>
             <SheetDescription className="text-neutral-700">{complaint.category} · {complaint.location || "Location not specified"}</SheetDescription>
           </SheetHeader>
 
-          <div className="flex border-b px-4" role="tablist" aria-label="Complaint information">
+          <Tabs key={complaint.id} defaultValue="details" className="min-h-0 flex-1 gap-0">
+          <TabsList variant="line" className="h-12 w-full shrink-0 justify-start border-b px-4" aria-label="Complaint information">
             {([ ["details", "Details"], ["message", "Original message"], ["activity", "Activity"] ] as const).map(([value, label]) => (
-              <button key={value} type="button" role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`border-b-2 px-3 py-3 text-xs ${tab === value ? "border-foreground font-medium" : "border-transparent text-neutral-700 hover:text-foreground"}`}>
+              <TabsTrigger key={value} value={value} className="flex-none rounded-none px-3 text-xs text-neutral-700">
                 {label}
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
+          </TabsList>
 
-          <div className="flex-1 overflow-y-auto p-5 text-neutral-800" role="tabpanel" tabIndex={0}>
-            {tab === "details" ? <>
+          <TabsContent value="details" className="min-h-0 overflow-y-auto break-words p-5 text-neutral-800">
               <section>
                 <h3 className="text-xs font-medium">Issue summary</h3>
                 <p className="mt-2 rounded-[6px] border bg-white p-3 text-sm leading-6">
@@ -66,11 +64,13 @@ export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { compla
                   <Detail label="Status" value={complaint.status} />
                 </dl>
               </section>
-            </> : tab === "message" ? <section>
+          </TabsContent>
+          <TabsContent value="message" className="min-h-0 overflow-y-auto p-5 text-neutral-800"><section>
               <h3 className="text-xs font-medium">Original WhatsApp message</h3>
               <p className="mt-3 whitespace-pre-wrap break-words rounded-[6px] border bg-white p-4 text-sm leading-6">{complaint.originalMessage}</p>
               <p className="mt-2 text-xs text-muted-foreground">{complaint.reporter} · {complaint.createdAt}</p>
-            </section> : <section>
+            </section></TabsContent>
+          <TabsContent value="activity" className="min-h-0 overflow-y-auto p-5 text-neutral-800"><section>
               <h3 className="text-xs font-medium">Status activity</h3>
               <ol className="mt-4 space-y-4">
                 {[...(complaint.statusHistory?.length ? complaint.statusHistory : [{ status: complaint.status, changedAt: complaint.createdAt }])].reverse().map((event, index) => (
@@ -80,8 +80,8 @@ export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { compla
                   </li>
                 ))}
               </ol>
-            </section>}
-          </div>
+            </section></TabsContent>
+          </Tabs>
 
           <footer className="border-t bg-background p-4">
             <p className="mb-2 text-[11px] text-muted-foreground">Update status</p>
@@ -97,7 +97,7 @@ export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { compla
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-start justify-between gap-4 py-3 text-xs"><dt className="text-neutral-700">{label}</dt><dd className="text-right font-medium">{value}</dd></div>;
+  return <div className="flex items-start justify-between gap-4 py-3 text-xs"><dt className="shrink-0 text-neutral-700">{label}</dt><dd className="min-w-0 break-words text-right font-medium">{value}</dd></div>;
 }
 
 function formatTime(value: string) {
