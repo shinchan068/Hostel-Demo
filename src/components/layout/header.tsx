@@ -31,7 +31,7 @@ export function Header() {
       <Link href="/import" className={buttonVariants({ className: "ml-auto h-9 px-3 sm:ml-0" })}>
         <Plus aria-hidden="true" />Import Chats
       </Link>
-      <div className="ml-1 hidden items-center gap-2 border-l pl-4 lg:flex" aria-label="Warden profile">
+      <div role="group" className="ml-1 hidden items-center gap-2 border-l pl-4 lg:flex" aria-label="Warden profile">
         <span className="flex size-7 items-center justify-center rounded-full bg-foreground text-xs text-white" aria-hidden="true">W</span>
         <span className="text-xs">Warden</span>
       </div>
