@@ -40,7 +40,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mt-auto pt-12">
         <div className="flex items-center gap-3 rounded-[6px] border bg-white px-3 py-3">
           <Sparkles size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div><p className="text-xs text-muted-foreground">AI triage powered by</p><p className="mt-0.5 text-sm font-medium">Gemma 4<span className="ml-2 font-mono text-[9px] font-normal text-muted-foreground">PLANNED</span></p></div>
+          <div><p className="text-xs text-muted-foreground">AI triage powered by</p><p className="mt-0.5 text-sm font-medium">Gemma 4</p></div>
         </div>
         <div className="mt-6 flex items-center gap-3 px-2">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-sm text-white" aria-hidden="true">W</span>

@@ -1,9 +1,14 @@
-import type { Complaint, ComplaintStatus, ComplaintStatusChange } from "./types";
+import { complaintStatuses, type Complaint, type ComplaintStatus, type ComplaintStatusChange } from "./types";
 
 const storageKey = "hostelhub.complaints.v1";
 const changeEvent = "hostelhub:complaints-changed";
 let cachedRaw: string | null = null;
 let cachedComplaints: Complaint[] = [];
+const serverComplaints: Complaint[] = [];
+
+export function readServerComplaints() {
+  return serverComplaints;
+}
 
 export function readComplaints(): Complaint[] {
   try {
@@ -31,7 +36,8 @@ export function subscribeToComplaints(callback: () => void) {
 export function addComplaints(incoming: Complaint[]) {
   const current = readComplaints();
   const ids = new Set(current.map((complaint) => complaint.id));
-  writeComplaints([...current, ...incoming.filter((complaint) => !ids.has(complaint.id))]);
+  const importedAt = new Date().toISOString();
+  writeComplaints([...current, ...incoming.filter((complaint) => !ids.has(complaint.id)).map((complaint) => ({ ...complaint, importedAt }))]);
 }
 
 export function updateComplaintStatus(id: string, status: ComplaintStatus) {
@@ -58,7 +64,7 @@ export function updateBoardOrder(columns: Record<ComplaintStatus, Complaint[]>) 
 
   const result: Complaint[] = [];
   const included = new Set<string>();
-  for (const status of ["Todo / Triaged", "In Progress", "Resolved / Fixed"] as const) {
+  for (const status of complaintStatuses) {
     const previous = current.filter((item) => item.status === status);
     const visible = columns[status].map((item) => current.find((entry) => entry.id === item.id) ?? item);
     let visibleIndex = 0;

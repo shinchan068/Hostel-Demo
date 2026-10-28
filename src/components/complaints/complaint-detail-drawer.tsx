@@ -10,9 +10,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { updateComplaintStatus } from "@/lib/complaint-store";
-import type { Complaint, ComplaintStatus } from "@/lib/types";
+import { complaintStatuses as statuses, type Complaint } from "@/lib/types";
 
-const statuses: ComplaintStatus[] = ["Todo / Triaged", "In Progress", "Resolved / Fixed"];
 const priorityStyle: Record<Complaint["priority"], string> = {
   P0: "bg-red-50 text-red-800",
   P1: "bg-orange-50 text-orange-800",

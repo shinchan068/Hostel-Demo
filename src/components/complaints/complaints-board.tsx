@@ -16,10 +16,9 @@ import {
   KanbanItemHandle,
   KanbanOverlay,
 } from "@/components/reui/kanban";
-import { clearComplaints, readComplaints, subscribeToComplaints, updateBoardOrder, updateComplaintStatus } from "@/lib/complaint-store";
-import { complaintCategories, complaintPriorities, type Complaint, type ComplaintStatus } from "@/lib/types";
+import { clearComplaints, readComplaints, readServerComplaints, subscribeToComplaints, updateBoardOrder, updateComplaintStatus } from "@/lib/complaint-store";
+import { complaintCategories, complaintPriorities, complaintStatuses as statuses, type Complaint, type ComplaintStatus } from "@/lib/types";
 
-const statuses: ComplaintStatus[] = ["Todo / Triaged", "In Progress", "Resolved / Fixed"];
 const statusDetails: Record<ComplaintStatus, { description: string; tone: string }> = {
   "Todo / Triaged": { description: "Newly parsed, not yet assigned.", tone: "border-neutral-200 bg-white" },
   "In Progress": { description: "Being handled by hostel staff.", tone: "border-blue-200 bg-blue-50/30" },
@@ -33,7 +32,7 @@ const priorityStyle: Record<Complaint["priority"], string> = {
 };
 
 export function ComplaintsBoard() {
-  const complaints = useSyncExternalStore(subscribeToComplaints, readComplaints, () => []);
+  const complaints = useSyncExternalStore(subscribeToComplaints, readComplaints, readServerComplaints);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [priority, setPriority] = useState("");
