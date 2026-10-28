@@ -48,10 +48,6 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
   async function analyze(source: "gemma" | "demo") {
     if (requestRef.current) return;
     setError("");
-    setResults([]);
-    setSelected([]);
-    setNoise(0);
-    setInvalidLines(0);
     if (!rawChat.trim()) {
       setError("Paste a WhatsApp chat or load the sample before analyzing.");
       return;
@@ -70,7 +66,6 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
       return;
     }
     setStatus("analyzing");
-    setAnalysisSource(source);
     try {
       let analysis: TriageResult;
       if (source === "demo") {
@@ -92,9 +87,9 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
       setSelected(analysis.complaints.map((item) => item.id));
       setNoise(analysis.noise);
       setInvalidLines(analysis.invalidLines);
-      if (!analysis.complaints.length) setError("No maintenance complaints found. Try the sample chat or paste another WhatsApp export.");
+      setAnalysisSource(source);
     } catch (cause) {
-      if (!requestRef.current?.signal.aborted) setError(cause instanceof Error ? cause.message : "AI analysis failed. Please retry.");
+      if (!requestRef.current?.signal.aborted) setError(cause instanceof DOMException && cause.name === "TimeoutError" ? "AI analysis timed out. Try a smaller chat when you are ready." : cause instanceof Error ? cause.message : "AI analysis failed. Please retry.");
     } finally {
       requestRef.current = null;
       setStatus("idle");
@@ -104,8 +99,16 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
   function addSelected() {
     const items = results.filter((item) => selected.includes(item.id));
     if (!items.length) return;
-    addComplaints(items);
-    router.push("/complaints");
+    if (items.some((item) => !item.title.trim())) {
+      setError("Give every selected complaint a title before adding it to the board.");
+      return;
+    }
+    try {
+      addComplaints(items.map((item) => ({ ...item, title: item.title.trim(), location: item.location.trim() })));
+      router.push("/complaints");
+    } catch {
+      setError("Could not save complaints in this browser. Keep this page open and allow browser storage or free some space, then try adding them again.");
+    }
   }
 
   const missingLocation = results.filter((item) => !item.location).length;
@@ -154,7 +157,7 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
           <p className="mt-3 text-center text-[11px] leading-5 text-muted-foreground">AI analysis sends the chat messages to Google. Demo triage stays in this browser. Up to {MAX_TRIAGE_MESSAGES} messages per analysis.</p>
         </section>
 
-        <section aria-labelledby="analysis-heading" className="min-w-0 rounded-[6px] border bg-white p-4 md:p-5">
+        <section aria-labelledby="analysis-heading" aria-busy={analyzing} className="min-w-0 rounded-[6px] border bg-white p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><h2 id="analysis-heading" className="text-base font-medium">Analysis results</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">Review and edit extracted complaints before adding them to the board.</p></div>
             {results.length > 0 ? <span className="font-mono text-[10px] tracking-wide text-muted-foreground">{results.length} FOUND</span> : null}
@@ -166,7 +169,13 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
             <Stat label="High priority" value={highPriority} />
           </div>
           {invalidLines > 0 ? <p className="mt-3 text-xs text-muted-foreground">Skipped {invalidLines} line{invalidLines === 1 ? "" : "s"} without a WhatsApp timestamp and sender.</p> : null}
-          {results.length ? (
+          {analyzing ? (
+            <div className="mt-5" role="status" aria-live="polite">
+              <p className="text-sm font-medium">Analyzing your chat…</p>
+              <p className="mt-1 text-xs text-muted-foreground">Your reviewed results will stay available if the request fails.</p>
+              <div aria-hidden="true" className="mt-4 space-y-3 motion-safe:animate-pulse">{[0, 1, 2].map((row) => <div key={row} className="flex h-16 items-center gap-3 rounded-[6px] border bg-background p-3"><span className="size-5 rounded bg-muted" /><span className="h-3 w-2/3 rounded bg-muted" /></div>)}</div>
+            </div>
+          ) : results.length ? (
             <>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-y py-3">
                 <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? [] : results.map((item) => item.id))} aria-label="Select all complaints" className="size-4 accent-[#171717]" />Select all <span className="text-muted-foreground">({selected.length} selected)</span></label>
@@ -195,8 +204,8 @@ export function ImportWorkspace({ sampleChat }: { sampleChat: string }) {
           ) : (
             <div className="mt-4 flex min-h-52 flex-col items-center justify-center rounded-[6px] border border-dashed px-5 text-center">
               <Sparkles size={20} className="mb-3 text-muted-foreground" aria-hidden="true" />
-              <p className="text-sm font-medium">Your results will appear here</p>
-              <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">Load the sample chat or paste a WhatsApp export, then analyze it to review the extracted complaints.</p>
+              <p className="text-sm font-medium">{analysisSource ? "No maintenance complaints found" : "Your results will appear here"}</p>
+              <p className="mt-1 max-w-sm text-xs leading-5 text-muted-foreground">{analysisSource ? "Unrelated conversation was filtered out. Try another chat or load the sample." : "Load the sample chat or paste a WhatsApp export, then analyze it to review the extracted complaints."}</p>
             </div>
           )}
         </section>

@@ -165,7 +165,7 @@ function ComplaintCardBody({ complaint, onOpen }: { complaint: Complaint; onOpen
         <span className={`rounded-[4px] px-2 py-1 font-mono text-[10px] ${priorityStyle[complaint.priority]}`}>{complaint.priority}</span>
         <KanbanItemHandle render={(props) => <button {...props} type="button" aria-label={`Drag ${complaint.title}`} className="rounded p-1 text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><GripVertical size={15} aria-hidden="true" /></button>} />
       </div>
-      <h3 className="mt-2 text-sm font-medium leading-5">{onOpen ? <button type="button" onClick={onOpen} aria-label={`Open details for ${complaint.title}`} className="text-left hover:underline focus-visible:outline-2 focus-visible:outline-ring">{complaint.title}</button> : complaint.title}</h3>
+      <h3 className="mt-2 break-words text-sm font-medium leading-5">{onOpen ? <button type="button" onClick={onOpen} aria-label={`Open details for ${complaint.title}`} className="max-w-full break-words text-left hover:underline focus-visible:outline-2 focus-visible:outline-ring">{complaint.title}</button> : complaint.title}</h3>
       <p className="mt-2 text-xs text-muted-foreground">{complaint.category} · {complaint.location || <span className="text-orange-700">Location not specified</span>}</p>
       <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="truncate">{complaint.reporter}</span><time className="shrink-0 font-mono text-[10px]">{complaint.createdAt}</time></div>
       <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground" title={complaint.originalMessage}>{complaint.originalMessage}</p>
