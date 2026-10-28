@@ -12,6 +12,7 @@ export const complaintPriorities = ["P0", "P1", "P2", "P3"] as const;
 export type ComplaintCategory = (typeof complaintCategories)[number];
 export type ComplaintPriority = (typeof complaintPriorities)[number];
 export type ComplaintStatus = "Todo / Triaged" | "In Progress" | "Resolved / Fixed";
+export type ComplaintStatusChange = { status: ComplaintStatus; changedAt: string };
 
 export type Complaint = {
   id: string;
@@ -22,6 +23,7 @@ export type Complaint = {
   reporter: string;
   originalMessage: string;
   status: ComplaintStatus;
+  statusHistory?: ComplaintStatusChange[];
   createdAt: string;
 };
 

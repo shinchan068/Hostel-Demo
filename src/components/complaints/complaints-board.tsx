@@ -5,6 +5,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { ArrowRight, GripVertical, PanelsTopLeft, Search } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ComplaintDetailDrawer } from "@/components/complaints/complaint-detail-drawer";
 import {
   Kanban,
   KanbanBoard,
@@ -38,6 +39,7 @@ export function ComplaintsBoard() {
   const [location, setLocation] = useState("");
   const [reporter, setReporter] = useState("");
   const [view, setView] = useState<"board" | "list">("board");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ key: string; columns: Record<ComplaintStatus, Complaint[]> } | null>(null);
 
   const filtered = useMemo(() => {
@@ -54,6 +56,7 @@ export function ComplaintsBoard() {
   const filtersActive = Boolean(query || category || priority || location || reporter);
   const viewKey = `${query}|${category}|${priority}|${location}|${reporter}|${complaints.map((item) => `${item.id}:${item.status}`).join(",")}`;
   const columns = draft?.key === viewKey ? draft.columns : grouped;
+  const selectedComplaint = complaints.find((item) => item.id === selectedId) ?? null;
 
   return (
     <>
@@ -103,7 +106,7 @@ export function ComplaintsBoard() {
                       <div><div className="flex items-center gap-2"><h2 className="text-sm font-medium">{status}</h2><span className="rounded-[4px] bg-white px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{columns[status].length}</span></div><p className="mt-1 text-[11px] leading-4 text-muted-foreground">{statusDetails[status].description}</p></div>
                     </div>
                     <KanbanColumnContent value={status} className="min-h-24 gap-2.5">
-                      {columns[status].map((item) => <ComplaintCard key={item.id} complaint={item} />)}
+                      {columns[status].map((item) => <ComplaintCard key={item.id} complaint={item} onOpen={() => setSelectedId(item.id)} />)}
                     </KanbanColumnContent>
                     {!columns[status].length ? <p className="mt-2 rounded-[4px] border border-dashed bg-white/70 px-3 py-5 text-center text-xs text-muted-foreground">Drop a complaint here</p> : null}
                   </KanbanColumn>
@@ -116,7 +119,7 @@ export function ComplaintsBoard() {
                 }}
               </KanbanOverlay>
             </Kanban>
-          ) : <ComplaintList complaints={filtered} onMove={updateComplaintStatus} />}
+          ) : <ComplaintList complaints={filtered} onMove={updateComplaintStatus} onOpen={(id) => setSelectedId(id)} />}
           {!filtered.length ? <div className="rounded-[6px] border border-dashed bg-white px-6 py-12 text-center"><p className="text-sm font-medium">No complaints match these filters</p><Button variant="link" className="mt-1" onClick={() => { setQuery(""); setCategory(""); setPriority(""); setLocation(""); setReporter(""); }}>Clear filters</Button></div> : null}
           <div className="mt-5"><Button variant="outline" size="sm" onClick={() => { setDraft(null); clearComplaints(); }}>Clear imported complaints</Button></div>
         </>
@@ -129,15 +132,16 @@ export function ComplaintsBoard() {
           <Link href="/import" className={buttonVariants({ variant: "outline", className: "mt-6 h-9 px-4" })}>Import Chats<ArrowRight aria-hidden="true" /></Link>
         </section>
       )}
+      <ComplaintDetailDrawer complaint={selectedComplaint} onClose={() => setSelectedId(null)} />
     </>
   );
 }
 
-function ComplaintCard({ complaint }: { complaint: Complaint }) {
+function ComplaintCard({ complaint, onOpen }: { complaint: Complaint; onOpen: () => void }) {
   return (
     <KanbanItem value={complaint.id} role="group" tabIndex={-1} className="rounded-[6px] outline-none focus-visible:ring-2 focus-visible:ring-ring">
       <article className="rounded-[6px] border bg-white p-3.5 transition-colors hover:border-neutral-300">
-        <ComplaintCardBody complaint={complaint} />
+        <ComplaintCardBody complaint={complaint} onOpen={onOpen} />
         <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2.5">
           <span className="text-[11px] text-muted-foreground">Move to</span>
           <label className="sr-only" htmlFor={`move-${complaint.id}`}>Move {complaint.title} to status</label>
@@ -150,14 +154,14 @@ function ComplaintCard({ complaint }: { complaint: Complaint }) {
   );
 }
 
-function ComplaintCardBody({ complaint }: { complaint: Complaint }) {
+function ComplaintCardBody({ complaint, onOpen }: { complaint: Complaint; onOpen?: () => void }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
         <span className={`rounded-[4px] px-2 py-1 font-mono text-[10px] ${priorityStyle[complaint.priority]}`}>{complaint.priority}</span>
         <KanbanItemHandle render={(props) => <button {...props} type="button" aria-label={`Drag ${complaint.title}`} className="rounded p-1 text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><GripVertical size={15} aria-hidden="true" /></button>} />
       </div>
-      <h3 className="mt-2 text-sm font-medium leading-5">{complaint.title}</h3>
+      <h3 className="mt-2 text-sm font-medium leading-5">{onOpen ? <button type="button" onClick={onOpen} aria-label={`Open details for ${complaint.title}`} className="text-left hover:underline focus-visible:outline-2 focus-visible:outline-ring">{complaint.title}</button> : complaint.title}</h3>
       <p className="mt-2 text-xs text-muted-foreground">{complaint.category} · {complaint.location || <span className="text-orange-700">Location not specified</span>}</p>
       <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted-foreground"><span className="truncate">{complaint.reporter}</span><time className="shrink-0 font-mono text-[10px]">{complaint.createdAt}</time></div>
       <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground" title={complaint.originalMessage}>{complaint.originalMessage}</p>
@@ -178,14 +182,14 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function ComplaintList({ complaints: items, onMove }: { complaints: Complaint[]; onMove: (id: string, status: ComplaintStatus) => void }) {
+function ComplaintList({ complaints: items, onMove, onOpen }: { complaints: Complaint[]; onMove: (id: string, status: ComplaintStatus) => void; onOpen: (id: string) => void }) {
   return (
     <div className="overflow-x-auto rounded-[6px] border bg-white">
       <table className="w-full min-w-[760px] text-left text-xs">
         <thead className="border-b bg-background font-mono text-[9px] tracking-wide text-muted-foreground"><tr>{["PRIORITY", "TITLE", "CATEGORY", "LOCATION", "REPORTED BY", "STATUS"].map((item) => <th key={item} scope="col" className="px-3 py-3 font-normal">{item}</th>)}</tr></thead>
         <tbody>{items.map((item) => <tr key={item.id} className="border-b last:border-0 hover:bg-muted/30">
           <td className="px-3 py-3"><span className={`rounded-[4px] px-2 py-1 font-mono text-[10px] ${priorityStyle[item.priority]}`}>{item.priority}</span></td>
-          <th scope="row" className="max-w-64 truncate px-3 py-3 font-medium" title={item.title}>{item.title}</th>
+          <th scope="row" className="max-w-64 truncate px-3 py-3 font-medium" title={item.title}><button type="button" onClick={() => onOpen(item.id)} className="text-left hover:underline focus-visible:outline-2 focus-visible:outline-ring">{item.title}</button></th>
           <td className="px-3 py-3">{item.category}</td><td className="px-3 py-3">{item.location || "Not specified"}</td><td className="px-3 py-3">{item.reporter}</td>
           <td className="px-3 py-3"><label className="sr-only" htmlFor={`list-move-${item.id}`}>Move {item.title} to status</label><select id={`list-move-${item.id}`} value={item.status} onChange={(event) => onMove(item.id, event.target.value as ComplaintStatus)} className="rounded-[4px] border bg-white px-2 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-ring">{statuses.map((status) => <option key={status}>{status}</option>)}</select></td>
         </tr>)}</tbody>
