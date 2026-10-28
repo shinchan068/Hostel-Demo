@@ -1,4 +1,4 @@
-import type { Complaint, ComplaintStatus } from "./types";
+import type { Complaint, ComplaintStatus, ComplaintStatusChange } from "./types";
 
 const storageKey = "hostelhub.complaints.v1";
 const changeEvent = "hostelhub:complaints-changed";
@@ -43,7 +43,7 @@ export function updateComplaintStatus(id: string, status: ComplaintStatus) {
   for (let index = 0; index < remaining.length; index++) {
     if (remaining[index].status === status) targetEnd = index;
   }
-  remaining.splice(targetEnd + 1, 0, { ...complaint, status });
+  remaining.splice(targetEnd + 1, 0, withStatusChange(complaint, status));
   writeComplaints(remaining);
 }
 
@@ -70,12 +70,19 @@ export function updateBoardOrder(columns: Record<ComplaintStatus, Complaint[]>) 
     merged.push(...visible.slice(visibleIndex));
     for (const item of merged) {
       const statusForItem = nextStatus.get(item.id) ?? status;
-      result.push(item.status === statusForItem ? item : { ...item, status: statusForItem });
+      result.push(item.status === statusForItem ? item : withStatusChange(item, statusForItem));
       included.add(item.id);
     }
   }
   for (const item of current) if (!included.has(item.id)) result.push(item);
   writeComplaints(result);
+}
+
+function withStatusChange(complaint: Complaint, status: ComplaintStatus): Complaint {
+  const history = complaint.statusHistory?.length
+    ? complaint.statusHistory
+    : [{ status: complaint.status, changedAt: complaint.createdAt } satisfies ComplaintStatusChange];
+  return { ...complaint, status, statusHistory: [...history, { status, changedAt: new Date().toISOString() }] };
 }
 
 function writeComplaints(complaints: Complaint[]) {
