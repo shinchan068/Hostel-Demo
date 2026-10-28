@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = mkdtempSync(path.join(tmpdir(), "hostelhub-triage-tests-"));
-execFileSync(process.execPath, [fileURLToPath(import.meta.resolve("typescript/bin/tsc")), "--outDir", output, "--target", "es2022", "--module", "commonjs", "--moduleResolution", "node", "--esModuleInterop", "--skipLibCheck", "--strict", "src/lib/parse-chat.ts", "src/lib/gemma-client.ts", "src/lib/work-order.ts"], { cwd: root, stdio: "pipe" });
+execFileSync(process.execPath, [fileURLToPath(import.meta.resolve("typescript/bin/tsc")), "--outDir", output, "--target", "es2022", "--module", "commonjs", "--moduleResolution", "node", "--esModuleInterop", "--skipLibCheck", "--strict", "src/lib/parse-chat.ts", "src/lib/gemma-client.ts", "src/lib/work-order.ts", "src/lib/overview.ts", "src/lib/complaint-store.ts"], { cwd: root, stdio: "pipe" });
 symlinkSync(path.join(root, "node_modules"), path.join(output, "node_modules"), "dir");
 after(() => rmSync(output, { recursive: true }));
 
@@ -17,6 +17,8 @@ const { validateTriageResponse } = (await import(pathToFileURL(path.join(output,
 const { readBoundedJson } = (await import(pathToFileURL(path.join(output, "read-json.js")))).default;
 const { triageWithGemma } = (await import(pathToFileURL(path.join(output, "gemma-client.js")))).default;
 const { formatWorkOrder } = (await import(pathToFileURL(path.join(output, "work-order.js")))).default;
+const { getOverviewSummary } = (await import(pathToFileURL(path.join(output, "overview.js")))).default;
+const complaintStore = (await import(pathToFileURL(path.join(output, "complaint-store.js")))).default;
 
 const nativeFetch = global.fetch;
 const originalKey = process.env.GEMMA_API_KEY;
@@ -123,4 +125,63 @@ test("work orders preserve inputs, sort by priority, and separate missing locati
   assert(text.includes("MISSING LOCATION"));
   assert(text.includes("[P0] Student reported Unknown room"));
   assert.equal(JSON.stringify(items), before);
+});
+
+test("empty overview metrics are zero and the server snapshot is stable", () => {
+  const summary = getOverviewSummary([]);
+  assert.equal(summary.total, 0);
+  assert.equal(summary.open, 0);
+  assert.equal(summary.resolvedPercent, 0);
+  assert(summary.categories.every((item) => item.count === 0));
+  assert.deepEqual(summary.needsAttention, []);
+  assert.deepEqual(summary.activity, []);
+  assert.equal(complaintStore.readServerComplaints(), complaintStore.readServerComplaints());
+});
+
+test("overview counts exclude resolved urgency and sort only recorded activity times", () => {
+  const base = validateTriageResponse([extracted], source).complaints[0];
+  const items = [
+    { ...base, id: "urgent", importedAt: "2026-10-28T10:00:00Z" },
+    { ...base, id: "followup", category: "Plumbing", priority: "P1", status: "In Progress", location: " " },
+    { ...base, id: "fixed", status: "Resolved / Fixed", statusHistory: [{ status: "Todo / Triaged", changedAt: "12/10/26, 10:00" }, { status: "Resolved / Fixed", changedAt: "2026-10-28T11:00:00Z" }] },
+    { ...base, id: "routine", category: "Wi-Fi", priority: "P2" },
+  ];
+  const before = JSON.stringify(items);
+  const summary = getOverviewSummary(items);
+  assert.equal(summary.total, 4);
+  assert.equal(summary.open, 3);
+  assert.equal(summary.critical, 1);
+  assert.equal(summary.resolved, 1);
+  assert.equal(summary.resolvedPercent, 25);
+  assert.equal(summary.missingLocation, 1);
+  assert.deepEqual(summary.needsAttention.map((item) => item.id), ["urgent", "followup"]);
+  assert.equal(summary.categories.find((item) => item.category === "Electrical").count, 2);
+  assert.equal(summary.activity.length, 2);
+  assert.equal(summary.activity[0].complaintId, "fixed");
+  assert.equal(JSON.stringify(items), before);
+});
+
+test("new imports record an actual time without modifying legacy records or source objects", () => {
+  const previousWindow = global.window;
+  const previousStorage = Object.getOwnPropertyDescriptor(global, "localStorage");
+  const stored = new Map();
+  global.window = new EventTarget();
+  Object.defineProperty(global, "localStorage", { configurable: true, writable: true, value: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) } });
+  try {
+    const base = validateTriageResponse([extracted], source).complaints[0];
+    complaintStore.addComplaints([base]);
+    const first = complaintStore.readComplaints()[0];
+    assert(Number.isFinite(Date.parse(first.importedAt)));
+    assert.equal(base.importedAt, undefined);
+    complaintStore.addComplaints([{ ...base, title: "Duplicate should not overwrite", importedAt: "2000-01-01T00:00:00Z" }]);
+    const saved = complaintStore.readComplaints();
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0].title, base.title);
+    assert.equal(saved[0].importedAt, first.importedAt);
+  } finally {
+    if (previousWindow === undefined) delete global.window;
+    else global.window = previousWindow;
+    if (previousStorage === undefined) delete global.localStorage;
+    else Object.defineProperty(global, "localStorage", previousStorage);
+  }
 });

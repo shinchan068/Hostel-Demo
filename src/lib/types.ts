@@ -11,7 +11,8 @@ export const complaintCategories = [
 export const complaintPriorities = ["P0", "P1", "P2", "P3"] as const;
 export type ComplaintCategory = (typeof complaintCategories)[number];
 export type ComplaintPriority = (typeof complaintPriorities)[number];
-export type ComplaintStatus = "Todo / Triaged" | "In Progress" | "Resolved / Fixed";
+export const complaintStatuses = ["Todo / Triaged", "In Progress", "Resolved / Fixed"] as const;
+export type ComplaintStatus = (typeof complaintStatuses)[number];
 export type ComplaintStatusChange = { status: ComplaintStatus; changedAt: string };
 
 export type Complaint = {
@@ -29,6 +30,7 @@ export type Complaint = {
   missingInfo?: string[];
   analysisSource?: "gemma" | "demo";
   createdAt: string;
+  importedAt?: string;
 };
 
 export type TriageResult = { complaints: Complaint[]; noise: number; invalidLines: number };
