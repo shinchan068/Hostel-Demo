@@ -20,7 +20,7 @@ const priorityStyle: Record<Complaint["priority"], string> = {
   P3: "bg-muted text-neutral-800",
 };
 
-export function ComplaintDetailDrawer({ complaint, onClose }: { complaint: Complaint | null; onClose: () => void }) {
+export function ComplaintDetailDrawer({ complaint, onClose, onExport }: { complaint: Complaint | null; onClose: () => void; onExport: (complaint: Complaint) => void }) {
   const [tab, setTab] = useState<"details" | "message" | "activity">("details");
 
   return (
@@ -86,6 +86,7 @@ export function ComplaintDetailDrawer({ complaint, onClose }: { complaint: Compl
             <div className="flex flex-wrap gap-2">
               {statuses.map((status) => <Button key={status} size="sm" variant={status === complaint.status ? "default" : "outline"} disabled={status === complaint.status} onClick={() => updateComplaintStatus(complaint.id, status)}>{status === complaint.status ? `Current: ${status}` : status === "Resolved / Fixed" ? "Mark resolved" : status === "In Progress" ? "Move to in progress" : "Reopen"}</Button>)}
             </div>
+            {complaint.status !== "Resolved / Fixed" ? <Button className="mt-2 w-full" variant="outline" onClick={() => onExport(complaint)}>Copy to WhatsApp</Button> : null}
           </footer>
         </> : null}
       </SheetContent>
